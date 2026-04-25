@@ -7,6 +7,19 @@ from PIL import Image, ImageTk
 
 
 @dataclass(slots=True)
+class Tone:
+    bg: str
+    panel: str
+    panel_alt: str
+    border: str
+    text: str
+    muted: str
+    accent: str
+    accent_soft: str
+    warning: str
+
+
+@dataclass(slots=True)
 class StatusTheme:
     fg: str
     border: str
@@ -14,7 +27,354 @@ class StatusTheme:
     accent: str
 
 
-class SOSAppUI(ctk.CTk):
+class ChatBubble(ctk.CTkFrame):
+    def __init__(self, master, role: str, text: str) -> None:
+        palette = {
+            "user": {"fg": "#1B2433", "border": "#31405C", "text": "#F3F7FF", "label": "You"},
+            "assistant": {"fg": "#1B2118", "border": "#4A5630", "text": "#F5F4EC", "label": "Gita Guide"},
+            "system": {"fg": "#171B22", "border": "#2C3444", "text": "#D6DEEC", "label": "System"},
+        }[role]
+
+        super().__init__(
+            master,
+            corner_radius=20,
+            fg_color=palette["fg"],
+            border_width=1,
+            border_color=palette["border"],
+        )
+        self.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self,
+            text=palette["label"],
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=12, weight="bold"),
+            text_color="#9DA9BF",
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=18, pady=(14, 6))
+
+        ctk.CTkLabel(
+            self,
+            text=text,
+            wraplength=760,
+            justify="left",
+            font=ctk.CTkFont(family="Segoe UI", size=15),
+            text_color=palette["text"],
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 16))
+
+
+class HarmonyChatPanel(ctk.CTkFrame):
+    def __init__(self, master, theme: Tone) -> None:
+        super().__init__(master, fg_color="transparent")
+        self.theme = theme
+        self.quick_actions: list[ctk.CTkButton] = []
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self._build_layout()
+
+    def _build_layout(self) -> None:
+        sidebar = ctk.CTkFrame(
+            self,
+            width=330,
+            corner_radius=24,
+            fg_color="#0D1118",
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+        sidebar.grid_propagate(False)
+        sidebar.grid_columnconfigure(0, weight=1)
+
+        main_panel = ctk.CTkFrame(self, fg_color="transparent")
+        main_panel.grid(row=0, column=1, sticky="nsew")
+        main_panel.grid_columnconfigure(0, weight=1)
+        main_panel.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            sidebar,
+            text="Harmony AI",
+            font=ctk.CTkFont(family="Georgia", size=30, weight="bold"),
+            text_color=self.theme.text,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=24, pady=(26, 4))
+
+        ctk.CTkLabel(
+            sidebar,
+            text="Local Llama 3 support chat inspired by Bhagavad Gita wisdom.",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=self.theme.muted,
+            wraplength=260,
+            justify="left",
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 20))
+
+        self.status_card = ctk.CTkFrame(
+            sidebar,
+            corner_radius=22,
+            fg_color="#191D14",
+            border_width=1,
+            border_color="#435334",
+        )
+        self.status_card.grid(row=2, column=0, sticky="ew", padx=22)
+        self.status_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.status_card,
+            text="Runtime Status",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color="#A9B58C",
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 6))
+
+        self.status_value = ctk.CTkLabel(
+            self.status_card,
+            text="Checking local model...",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=22, weight="bold"),
+            text_color="#F3F7E6",
+            anchor="w",
+        )
+        self.status_value.grid(row=1, column=0, sticky="ew", padx=18)
+
+        self.status_detail = ctk.CTkLabel(
+            self.status_card,
+            text="The app uses Ollama on your own machine for offline chats.",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#B8C4D8",
+            wraplength=260,
+            justify="left",
+            anchor="w",
+        )
+        self.status_detail.grid(row=2, column=0, sticky="ew", padx=18, pady=(8, 16))
+
+        self.model_chip = ctk.CTkLabel(
+            sidebar,
+            text="Model: llama3",
+            corner_radius=999,
+            fg_color="#1A2230",
+            text_color="#D6E2FA",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=13, weight="bold"),
+            padx=14,
+            pady=8,
+        )
+        self.model_chip.grid(row=3, column=0, sticky="w", padx=22, pady=(16, 20))
+
+        self.verse_card = ctk.CTkFrame(
+            sidebar,
+            corner_radius=22,
+            fg_color="#201B12",
+            border_width=1,
+            border_color="#5B4930",
+        )
+        self.verse_card.grid(row=4, column=0, sticky="ew", padx=22)
+        self.verse_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.verse_card,
+            text="Grounding Verse",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color="#D9B57A",
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 6))
+
+        self.verse_reference = ctk.CTkLabel(
+            self.verse_card,
+            text="Bhagavad Gita",
+            font=ctk.CTkFont(family="Georgia", size=20, weight="bold"),
+            text_color="#F5E8D0",
+            anchor="w",
+        )
+        self.verse_reference.grid(row=1, column=0, sticky="ew", padx=18)
+
+        self.verse_text = ctk.CTkLabel(
+            self.verse_card,
+            text="A verse will appear here based on the emotion in your message.",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#E8DBC0",
+            wraplength=260,
+            justify="left",
+            anchor="w",
+        )
+        self.verse_text.grid(row=2, column=0, sticky="ew", padx=18, pady=(8, 16))
+
+        self.safety_card = ctk.CTkFrame(
+            sidebar,
+            corner_radius=22,
+            fg_color=self.theme.panel,
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        self.safety_card.grid(row=5, column=0, sticky="ew", padx=22, pady=(18, 0))
+        self.safety_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.safety_card,
+            text="Care Note",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color="#F2B5AA",
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 6))
+
+        self.safety_text = ctk.CTkLabel(
+            self.safety_card,
+            text="This app is for encouragement, not medical treatment. If you feel unsafe, seek immediate human help.",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#D6DEEC",
+            wraplength=260,
+            justify="left",
+            anchor="w",
+        )
+        self.safety_text.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 16))
+
+        header = ctk.CTkFrame(
+            main_panel,
+            corner_radius=26,
+            fg_color=self.theme.panel_alt,
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            header,
+            text="A calm space for reflection, perspective, and one small next step.",
+            font=ctk.CTkFont(family="Georgia", size=26, weight="bold"),
+            text_color=self.theme.text,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 6))
+
+        ctk.CTkLabel(
+            header,
+            text="Powered locally by Ollama. Your messages stay on your machine when the local model is running.",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=self.theme.muted,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 18))
+
+        chat_card = ctk.CTkFrame(
+            main_panel,
+            corner_radius=26,
+            fg_color=self.theme.panel,
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        chat_card.grid(row=1, column=0, sticky="nsew")
+        chat_card.grid_columnconfigure(0, weight=1)
+        chat_card.grid_rowconfigure(1, weight=1)
+
+        quick_actions = ctk.CTkFrame(chat_card, fg_color="transparent")
+        quick_actions.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 10))
+
+        prompts = (
+            "I feel emotionally exhausted",
+            "I am anxious about my future",
+            "I feel lonely and stuck",
+        )
+        for index, prompt in enumerate(prompts):
+            button = ctk.CTkButton(
+                quick_actions,
+                text=prompt,
+                height=34,
+                corner_radius=999,
+                fg_color="#1A2230",
+                hover_color="#243044",
+                text_color="#E6EEF9",
+                font=ctk.CTkFont(family="Segoe UI", size=13),
+            )
+            button.grid(row=0, column=index, padx=(0, 10), sticky="w")
+            self.quick_actions.append(button)
+
+        self.chat_scroll = ctk.CTkScrollableFrame(
+            chat_card,
+            corner_radius=0,
+            fg_color="transparent",
+        )
+        self.chat_scroll.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 12))
+        self.chat_scroll.grid_columnconfigure(0, weight=1)
+
+        composer = ctk.CTkFrame(
+            chat_card,
+            corner_radius=22,
+            fg_color="#0D131B",
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        composer.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 18))
+        composer.grid_columnconfigure(0, weight=1)
+
+        self.input_box = ctk.CTkTextbox(
+            composer,
+            height=110,
+            corner_radius=18,
+            fg_color="#101721",
+            border_width=0,
+            text_color="#F4F7FD",
+            font=ctk.CTkFont(family="Segoe UI", size=15),
+            wrap="word",
+        )
+        self.input_box.grid(row=0, column=0, sticky="ew", padx=14, pady=14)
+
+        action_bar = ctk.CTkFrame(composer, fg_color="transparent")
+        action_bar.grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 14))
+        action_bar.grid_columnconfigure(0, weight=1)
+
+        self.helper_label = ctk.CTkLabel(
+            action_bar,
+            text="Try describing your feeling honestly. The response will stay gentle, practical, and grounded.",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=self.theme.muted,
+            anchor="w",
+        )
+        self.helper_label.grid(row=0, column=0, sticky="ew")
+
+        self.send_button = ctk.CTkButton(
+            action_bar,
+            text="Send",
+            width=120,
+            height=40,
+            corner_radius=16,
+            fg_color=self.theme.accent,
+            hover_color="#C69240",
+            text_color="#17120B",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=14, weight="bold"),
+        )
+        self.send_button.grid(row=0, column=1, sticky="e", padx=(14, 0))
+
+    def add_message(self, role: str, text: str) -> None:
+        bubble = ChatBubble(self.chat_scroll, role=role, text=text)
+        sticky = "e" if role == "user" else "w"
+        bubble.grid(
+            row=len(self.chat_scroll.winfo_children()),
+            column=0,
+            sticky=sticky,
+            pady=(0, 14),
+            padx=8,
+        )
+        self.after(10, self.chat_scroll._parent_canvas.yview_moveto, 1.0)
+
+    def set_runtime_status(self, online: bool, detail: str, model_name: str) -> None:
+        if online:
+            self.status_card.configure(fg_color="#182116", border_color="#496239")
+            self.status_value.configure(text="LOCAL MODEL READY", text_color="#ECF8DE")
+            self.status_detail.configure(text=detail)
+        else:
+            self.status_card.configure(fg_color="#2A171A", border_color="#7E3945")
+            self.status_value.configure(text="OLLAMA OFFLINE", text_color="#FFD8DE")
+            self.status_detail.configure(text=detail)
+        self.model_chip.configure(text=f"Model: {model_name}")
+
+    def set_grounding_verse(self, reference: str, text: str) -> None:
+        self.verse_reference.configure(text=reference)
+        self.verse_text.configure(text=text)
+
+    def set_busy(self, busy: bool) -> None:
+        self.send_button.configure(
+            text="Thinking..." if busy else "Send",
+            state="disabled" if busy else "normal",
+        )
+        for button in self.quick_actions:
+            button.configure(state="disabled" if busy else "normal")
+
+
+class SOSPanel(ctk.CTkFrame):
     SAFE_THEME = StatusTheme(
         fg="#15261C",
         border="#2C6E49",
@@ -28,53 +388,50 @@ class SOSAppUI(ctk.CTk):
         accent="#FF5D73",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-
-        self.title("SOS Gesture Detector")
-        self.geometry("1240x860")
-        self.minsize(1040, 760)
-        self.configure(fg_color="#090B10")
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
+    def __init__(self, master, theme: Tone) -> None:
+        super().__init__(master, fg_color="transparent")
+        self.theme = theme
         self._status_mode = "SAFE"
         self._transition_job: str | None = None
         self._pulse_job: str | None = None
         self._pulse_level = 0.0
         self._pulse_direction = 1
         self._current_image = None
-
         self._build_layout()
-        self.apply_status("SAFE", "System ready", [])
+        self.apply_status("SAFE", "System ready", [], live_state="Waiting for hand")
 
     def _build_layout(self) -> None:
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=28, pady=(24, 12))
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        header = ctk.CTkFrame(
+            self,
+            corner_radius=26,
+            fg_color=self.theme.panel_alt,
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
         header.grid_columnconfigure(0, weight=1)
 
-        self.title_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             header,
-            text="SOS Gesture Detector",
-            font=ctk.CTkFont(family="Segoe UI Semibold", size=32, weight="bold"),
-            text_color="#F5F7FB",
+            text="SOS Gesture Detection Module",
+            font=ctk.CTkFont(family="Georgia", size=26, weight="bold"),
+            text_color=self.theme.text,
             anchor="w",
-        )
-        self.title_label.grid(row=0, column=0, sticky="w")
+        ).grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 6))
 
-        self.subtitle_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             header,
-            text="Real-time gesture monitoring with a calm, product-grade interface.",
+            text="Use the camera to monitor the OPEN -> CLOSED -> OPEN gesture. Repeat it 3 times to trigger the alarm.",
             font=ctk.CTkFont(family="Segoe UI", size=14),
-            text_color="#8E96A8",
+            text_color=self.theme.muted,
             anchor="w",
-        )
-        self.subtitle_label.grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ).grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 18))
 
         content = ctk.CTkFrame(self, fg_color="transparent")
-        content.grid(row=1, column=0, sticky="nsew", padx=28, pady=12)
+        content.grid(row=1, column=0, sticky="nsew")
         content.grid_columnconfigure(0, weight=3)
         content.grid_columnconfigure(1, weight=1)
         content.grid_rowconfigure(0, weight=1)
@@ -124,13 +481,12 @@ class SOSAppUI(ctk.CTk):
         self.status_card.grid(row=0, column=0, sticky="ew")
         self.status_card.grid_columnconfigure(0, weight=1)
 
-        self.status_caption = ctk.CTkLabel(
+        ctk.CTkLabel(
             self.status_card,
             text="Current Status",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#92A0B8",
-        )
-        self.status_caption.grid(row=0, column=0, sticky="w", padx=22, pady=(20, 8))
+        ).grid(row=0, column=0, sticky="w", padx=22, pady=(20, 8))
 
         self.status_value = ctk.CTkLabel(
             self.status_card,
@@ -160,14 +516,13 @@ class SOSAppUI(ctk.CTk):
         self.detail_card.grid(row=1, column=0, sticky="ew", pady=(18, 0))
         self.detail_card.grid_columnconfigure(0, weight=1)
 
-        self.live_state_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             self.detail_card,
             text="Live State",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#92A0B8",
             anchor="w",
-        )
-        self.live_state_label.grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 8))
+        ).grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 8))
 
         self.live_state_value = ctk.CTkLabel(
             self.detail_card,
@@ -199,14 +554,13 @@ class SOSAppUI(ctk.CTk):
         self.history_card.grid(row=2, column=0, sticky="ew", pady=(18, 0))
         self.history_card.grid_columnconfigure(0, weight=1)
 
-        self.history_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             self.history_card,
             text="Gesture History",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#92A0B8",
             anchor="w",
-        )
-        self.history_label.grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 8))
+        ).grid(row=0, column=0, sticky="ew", padx=22, pady=(18, 8))
 
         self.history_value = ctk.CTkLabel(
             self.history_card,
@@ -220,7 +574,7 @@ class SOSAppUI(ctk.CTk):
         self.history_value.grid(row=1, column=0, sticky="ew", padx=22, pady=(0, 18))
 
         footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.grid(row=2, column=0, sticky="ew", padx=28, pady=(0, 22))
+        footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
         footer.grid_columnconfigure(0, weight=1)
 
         self.footer_label = ctk.CTkLabel(
@@ -235,7 +589,6 @@ class SOSAppUI(ctk.CTk):
         target_width, target_height = self._camera_target_size()
         display_image = frame_image.copy()
         display_image.thumbnail((target_width, target_height))
-
         self._current_image = ImageTk.PhotoImage(display_image)
         self.camera_label.configure(image=self._current_image, text="")
 
@@ -255,8 +608,7 @@ class SOSAppUI(ctk.CTk):
         self.status_value.configure(text="ALERT  \U0001F6A8" if mode == "ALERT" else "SAFE")
         self.live_state_value.configure(text=live_state or "Waiting for hand")
         self.debug_label.configure(text=detail_text)
-        history_text = "  ->  ".join(history[-6:]) if history else "No gestures yet"
-        self.history_value.configure(text=history_text)
+        self.history_value.configure(text="  ->  ".join(history[-6:]) if history else "No gestures yet")
 
     def _camera_target_size(self) -> tuple[int, int]:
         self.update_idletasks()
@@ -285,7 +637,6 @@ class SOSAppUI(ctk.CTk):
             self.status_indicator.configure(
                 progress_color=self._mix_color(start_progress, theme.accent, blend)
             )
-
             if index < steps:
                 self._transition_job = self.after(24, tick, index + 1)
             else:
@@ -302,7 +653,6 @@ class SOSAppUI(ctk.CTk):
     def _start_alert_pulse(self) -> None:
         if self._pulse_job is not None:
             return
-
         self._pulse_level = 0.0
         self._pulse_direction = 1
 
@@ -310,7 +660,6 @@ class SOSAppUI(ctk.CTk):
             if self._status_mode != "ALERT":
                 self._pulse_job = None
                 return
-
             self._pulse_level += 0.08 * self._pulse_direction
             if self._pulse_level >= 1.0:
                 self._pulse_level = 1.0
@@ -347,3 +696,79 @@ class SOSAppUI(ctk.CTk):
         g = round(g1 + (g2 - g1) * ratio)
         b = round(b1 + (b2 - b1) * ratio)
         return f"#{r:02X}{g:02X}{b:02X}"
+
+
+class HarmonyHubUI(ctk.CTk):
+    THEME = Tone(
+        bg="#0A0D12",
+        panel="#11161E",
+        panel_alt="#161D27",
+        border="#263140",
+        text="#F5F7FB",
+        muted="#97A3B7",
+        accent="#D8A657",
+        accent_soft="#F1D49A",
+        warning="#FF8C78",
+    )
+
+    def __init__(self) -> None:
+        super().__init__()
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+
+        self.title("Harmony AI")
+        self.geometry("1400x900")
+        self.minsize(1180, 800)
+        self.configure(fg_color=self.THEME.bg)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        self._build_layout()
+
+    def _build_layout(self) -> None:
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(22, 12))
+        header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            header,
+            text="Harmony AI Suite",
+            font=ctk.CTkFont(family="Georgia", size=34, weight="bold"),
+            text_color=self.THEME.text,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            header,
+            text="Two modules in one desktop app: Bhagavad Gita support chat and SOS gesture detection.",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=self.THEME.muted,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        self.tabs = ctk.CTkTabview(
+            self,
+            corner_radius=24,
+            fg_color="#0E131B",
+            segmented_button_fg_color="#1A2230",
+            segmented_button_selected_color=self.THEME.accent,
+            segmented_button_selected_hover_color="#C69240",
+            segmented_button_unselected_color="#1A2230",
+            segmented_button_unselected_hover_color="#243044",
+            text_color="#EAF0FC",
+            border_width=1,
+            border_color=self.THEME.border,
+        )
+        self.tabs.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 24))
+        self.tabs.add("Harmony AI Chat")
+        self.tabs.add("SOS Gesture Detector")
+        self.tabs.tab("Harmony AI Chat").grid_columnconfigure(0, weight=1)
+        self.tabs.tab("Harmony AI Chat").grid_rowconfigure(0, weight=1)
+        self.tabs.tab("SOS Gesture Detector").grid_columnconfigure(0, weight=1)
+        self.tabs.tab("SOS Gesture Detector").grid_rowconfigure(0, weight=1)
+
+        self.chat_panel = HarmonyChatPanel(self.tabs.tab("Harmony AI Chat"), self.THEME)
+        self.chat_panel.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)
+
+        self.sos_panel = SOSPanel(self.tabs.tab("SOS Gesture Detector"), self.THEME)
+        self.sos_panel.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)

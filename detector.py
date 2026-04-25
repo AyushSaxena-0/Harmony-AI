@@ -109,13 +109,12 @@ class SOSGestureDetector:
             self._last_alert_time = monotonic()
             self._sequence_steps.clear()
 
-        debug_text = self._build_debug_text(current_state, hand_present)
         detection = DetectionResult(
             is_alert=is_alert,
             hand_present=hand_present,
             current_state=current_state,
             history=list(self._gesture_history),
-            debug_text=debug_text,
+            debug_text=self._build_debug_text(current_state, hand_present),
             sos_progress=self._confirmed_sos_count,
             sos_goal=self._required_sos_count,
         )
@@ -135,12 +134,7 @@ class SOSGestureDetector:
 
     def _classify_hand_state(self, hand_landmarks) -> str:
         landmarks = hand_landmarks.landmark
-        finger_pairs = (
-            (8, 6),
-            (12, 10),
-            (16, 14),
-            (20, 18),
-        )
+        finger_pairs = ((8, 6), (12, 10), (16, 14), (20, 18))
         extended_count = sum(1 for tip, pip in finger_pairs if landmarks[tip].y < landmarks[pip].y)
 
         thumb_tip = landmarks[4]
