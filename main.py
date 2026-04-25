@@ -10,7 +10,7 @@ from PIL import Image
 
 from chatbot import BhagavadGitaSupportBot, ChatMessage, LocalLlamaClient, OllamaConnectionError
 from detector import SOSGestureDetector
-from skin_detector import SkinDetector
+from skin_detector import SkinConditionAnalyzer
 from ui import HarmonyHubUI
 
 
@@ -25,21 +25,19 @@ class HarmonyDesktopApp:
         self._response_queue: Queue[tuple[str, str, str, str] | tuple[str, str]] = Queue()
 
         self.detector: SOSGestureDetector | None = None
-        self.skin_detector = SkinDetector()
-        self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.skin_analyzer = SkinConditionAnalyzer()
+        self.capture: cv2.VideoCapture | None = None
         self._alert_until = 0.0
         self._running = True
         self._startup_error = ""
         self._alarm_thread: threading.Thread | None = None
+        self._last_tab = self.ui.tabs.get()
 
         self._wire_events()
         self._bootstrap_chat()
         self._bootstrap_detector()
         self.ui.after(150, self._poll_queue)
-        self.ui.after(16, self._schedule_next_frame)
+        self.ui.after(16, self._tick)
 
     def _wire_events(self) -> None:
         chat = self.ui.chat_panel
@@ -48,6 +46,8 @@ class HarmonyDesktopApp:
         for button in chat.quick_actions:
             prompt = button.cget("text")
             button.configure(command=lambda value=prompt: self._fill_prompt(value))
+
+        self.ui.skin_panel.pick_button.configure(command=self._handle_skin_image_pick)
         self.ui.protocol("WM_DELETE_WINDOW", self._close)
 
     def _bootstrap_chat(self) -> None:
@@ -67,19 +67,19 @@ class HarmonyDesktopApp:
             self._startup_error = str(exc)
 
         panel = self.ui.sos_panel
-        if not self.capture.isOpened():
-            panel.apply_status(
-                "ALERT",
-                "Camera unavailable. Check permissions or ensure another app is not using the webcam.",
-                [],
-                live_state="Camera offline",
-            )
-        elif self._startup_error:
+        if self._startup_error:
             panel.apply_status(
                 "ALERT",
                 self._startup_error,
                 [],
                 live_state="Detector unavailable",
+            )
+        else:
+            panel.apply_status(
+                "SAFE",
+                "Open the SOS tab to activate the camera feed.",
+                [],
+                live_state="Standby",
             )
 
     def _refresh_runtime_status(self) -> None:
@@ -153,23 +153,108 @@ class HarmonyDesktopApp:
         if self._running:
             self.ui.after(150, self._poll_queue)
 
-    def _schedule_next_frame(self) -> None:
+    def _handle_skin_image_pick(self) -> None:
+        panel = self.ui.skin_panel
+        image_path = panel.choose_image()
+        if not image_path:
+            return
+        if not self.skin_analyzer.supported_image(image_path):
+            panel.apply_status(
+                "READY",
+                "Please choose a supported image such as PNG, JPG, BMP, or WEBP.",
+                "Unsupported image",
+            )
+            return
+
+        try:
+            preview_image, result = self.skin_analyzer.analyze_image(image_path)
+        except Exception as exc:
+            panel.apply_status(
+                "READY",
+                f"Could not analyze the selected image: {exc}",
+                "Analysis failed",
+            )
+            return
+
+        panel.update_preview(preview_image)
+        panel.apply_status("DETECTED", result.disclaimer, result.overview)
+        panel.set_concerns(
+            [(concern.name, concern.summary, concern.score) for concern in result.concerns]
+        )
+
+    def _tick(self) -> None:
         if not self._running:
             return
-        if not self.capture.isOpened():
-            self._apply_camera_unavailable()
-        else:
-            success, frame = self.capture.read()
-            if success:
-                self._update_detector_loop(frame.copy())
-                self._update_skin_loop(frame.copy())
-            else:
-                self._apply_camera_read_error()
-        self.ui.after(16, self._schedule_next_frame)
 
-    def _update_detector_loop(self, frame) -> None:
+        active_tab = self.ui.tabs.get()
+        if active_tab != self._last_tab:
+            self._handle_tab_switch(active_tab)
+            self._last_tab = active_tab
+
+        if active_tab == "SOS Gesture Detector":
+            self._update_sos_module()
+
+        self.ui.after(16, self._tick)
+
+    def _handle_tab_switch(self, active_tab: str) -> None:
+        if active_tab == "SOS Gesture Detector":
+            self._ensure_camera()
+        else:
+            self._release_camera()
+            self.ui.sos_panel.apply_status(
+                "SAFE",
+                "SOS detector is paused while another module is active.",
+                [],
+                live_state="Paused",
+            )
+
+    def _ensure_camera(self) -> bool:
+        if self.capture is not None and self.capture.isOpened():
+            return True
+
+        self.capture = cv2.VideoCapture(0)
+        if not self.capture.isOpened():
+            self.capture = None
+            return False
+
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        return True
+
+    def _release_camera(self) -> None:
+        if self.capture is not None and self.capture.isOpened():
+            self.capture.release()
+        self.capture = None
+
+    def _update_sos_module(self) -> None:
         panel = self.ui.sos_panel
         if self.detector is None:
+            panel.apply_status(
+                "ALERT",
+                self._startup_error or "Detector unavailable in this environment.",
+                [],
+                live_state="Detector unavailable",
+            )
+            return
+
+        if not self._ensure_camera():
+            panel.apply_status(
+                "ALERT",
+                "Camera unavailable. Check permissions or ensure another app is not using the webcam.",
+                [],
+                live_state="Camera offline",
+            )
+            return
+
+        success, frame = self.capture.read()
+        if not success:
+            panel.apply_status(
+                "ALERT",
+                "Unable to read camera frames in real time.",
+                [],
+                live_state="Stream interrupted",
+            )
             return
 
         processed_frame, detection = self.detector.process_frame(frame)
@@ -192,47 +277,6 @@ class HarmonyDesktopApp:
                 detection.sos_goal,
                 mode,
             ),
-        )
-
-    def _update_skin_loop(self, frame) -> None:
-        panel = self.ui.skin_panel
-        preview_frame, mask_frame, result = self.skin_detector.process_frame(frame)
-        preview_rgb = cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB)
-        mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
-        panel.update_frames(Image.fromarray(preview_rgb), Image.fromarray(mask_rgb))
-        panel.apply_status(
-            result.status,
-            result.detail_text,
-            f"{result.coverage_ratio * 100:.1f}%",
-            result.coverage_ratio,
-        )
-
-    def _apply_camera_unavailable(self) -> None:
-        self.ui.sos_panel.apply_status(
-            "ALERT",
-            "Camera unavailable. Check permissions or ensure another app is not using the webcam.",
-            [],
-            live_state="Camera offline",
-        )
-        self.ui.skin_panel.apply_status(
-            "SCANNING",
-            "Camera unavailable. Connect a webcam to use the skin detector module.",
-            "0.0%",
-            0.0,
-        )
-
-    def _apply_camera_read_error(self) -> None:
-        self.ui.sos_panel.apply_status(
-            "ALERT",
-            "Unable to read camera frames in real time.",
-            [],
-            live_state="Stream interrupted",
-        )
-        self.ui.skin_panel.apply_status(
-            "SCANNING",
-            "Unable to read camera frames for skin detection.",
-            "0.0%",
-            0.0,
         )
 
     @staticmethod
@@ -272,8 +316,7 @@ class HarmonyDesktopApp:
 
     def _close(self) -> None:
         self._running = False
-        if self.capture.isOpened():
-            self.capture.release()
+        self._release_camera()
         if self.detector is not None:
             self.detector.close()
         self.ui.destroy()

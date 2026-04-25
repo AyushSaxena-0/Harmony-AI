@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
+from tkinter import filedialog
 
 
 @dataclass(slots=True)
@@ -716,9 +717,9 @@ class SkinPanel(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent")
         self.theme = theme
         self._current_preview = None
-        self._current_mask = None
+        self.concern_rows: list[tuple[ctk.CTkLabel, ctk.CTkLabel]] = []
         self._build_layout()
-        self.apply_status("SCANNING", "Skin detector ready.", "No frame yet", 0.0)
+        self.apply_status("READY", "Upload a skin image from your gallery to analyze visible patterns.", "No image selected")
 
     def _build_layout(self) -> None:
         self.grid_columnconfigure(0, weight=1)
@@ -744,7 +745,7 @@ class SkinPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(
             header,
-            text="Local webcam analysis that highlights likely skin regions with a stable mask preview.",
+            text="Upload an image from your gallery to get the top 5 likely visible skin concern categories.",
             font=ctk.CTkFont(family="Segoe UI", size=14),
             text_color=self.theme.muted,
             anchor="w",
@@ -753,18 +754,14 @@ class SkinPanel(ctk.CTkFrame):
         content = ctk.CTkFrame(self, fg_color="transparent")
         content.grid(row=1, column=0, sticky="nsew")
         content.grid_columnconfigure(0, weight=2)
-        content.grid_columnconfigure(1, weight=2)
-        content.grid_columnconfigure(2, weight=1)
+        content.grid_columnconfigure(1, weight=1)
         content.grid_rowconfigure(0, weight=1)
 
-        self.preview_frame = self._build_camera_card(content, "Live Preview")
+        self.preview_frame = self._build_preview_card(content, "Selected Image")
         self.preview_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
 
-        self.mask_frame = self._build_camera_card(content, "Detection Mask")
-        self.mask_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 14))
-
         side = ctk.CTkFrame(content, fg_color="transparent")
-        side.grid(row=0, column=2, sticky="nsew")
+        side.grid(row=0, column=1, sticky="nsew")
         side.grid_columnconfigure(0, weight=1)
 
         self.status_card = ctk.CTkFrame(
@@ -779,29 +776,31 @@ class SkinPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(
             self.status_card,
-            text="Detection Status",
+            text="Analysis Status",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#9FB5CD",
         ).grid(row=0, column=0, sticky="w", padx=22, pady=(18, 8))
 
         self.status_value = ctk.CTkLabel(
             self.status_card,
-            text="SCANNING",
+            text="READY",
             font=ctk.CTkFont(family="Segoe UI Semibold", size=26, weight="bold"),
             text_color=self.SCAN_THEME.text,
             anchor="w",
         )
         self.status_value.grid(row=1, column=0, sticky="ew", padx=22)
 
-        self.coverage_bar = ctk.CTkProgressBar(
+        self.pick_button = ctk.CTkButton(
             self.status_card,
-            height=10,
-            corner_radius=999,
-            fg_color="#0B0F15",
-            progress_color=self.SCAN_THEME.accent,
+            text="Choose Image",
+            height=40,
+            corner_radius=16,
+            fg_color=self.theme.accent,
+            hover_color="#C69240",
+            text_color="#17120B",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=14, weight="bold"),
         )
-        self.coverage_bar.grid(row=2, column=0, sticky="ew", padx=22, pady=(16, 18))
-        self.coverage_bar.set(0)
+        self.pick_button.grid(row=2, column=0, sticky="ew", padx=22, pady=(16, 18))
 
         self.metrics_card = ctk.CTkFrame(
             side,
@@ -815,23 +814,23 @@ class SkinPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(
             self.metrics_card,
-            text="Coverage",
+            text="Image Summary",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#92A0B8",
         ).grid(row=0, column=0, sticky="w", padx=22, pady=(18, 8))
 
-        self.coverage_label = ctk.CTkLabel(
+        self.summary_label = ctk.CTkLabel(
             self.metrics_card,
-            text="0.0%",
+            text="No image selected",
             font=ctk.CTkFont(family="Segoe UI Semibold", size=22, weight="bold"),
             text_color="#F5F7FB",
             anchor="w",
         )
-        self.coverage_label.grid(row=1, column=0, sticky="ew", padx=22)
+        self.summary_label.grid(row=1, column=0, sticky="ew", padx=22)
 
         self.detail_label = ctk.CTkLabel(
             self.metrics_card,
-            text="Skin detector ready.",
+            text="Results are a non-diagnostic visual shortlist only.",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#8E96A8",
             wraplength=260,
@@ -840,19 +839,58 @@ class SkinPanel(ctk.CTkFrame):
         )
         self.detail_label.grid(row=2, column=0, sticky="ew", padx=22, pady=(10, 18))
 
+        self.concerns_card = ctk.CTkFrame(
+            side,
+            corner_radius=24,
+            fg_color="#0F131B",
+            border_width=1,
+            border_color="#1E2633",
+        )
+        self.concerns_card.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        self.concerns_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.concerns_card,
+            text="Top 5 Likely Concerns",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#92A0B8",
+        ).grid(row=0, column=0, sticky="w", padx=22, pady=(18, 10))
+
+        for index in range(5):
+            name_label = ctk.CTkLabel(
+                self.concerns_card,
+                text=f"{index + 1}. Waiting for analysis",
+                font=ctk.CTkFont(family="Segoe UI Semibold", size=14, weight="bold"),
+                text_color="#F5F7FB",
+                anchor="w",
+            )
+            name_label.grid(row=index * 2 + 1, column=0, sticky="ew", padx=22)
+
+            summary_label = ctk.CTkLabel(
+                self.concerns_card,
+                text="Upload an image to populate the ranked shortlist.",
+                font=ctk.CTkFont(family="Segoe UI", size=12),
+                text_color="#8E96A8",
+                wraplength=260,
+                justify="left",
+                anchor="w",
+            )
+            summary_label.grid(row=index * 2 + 2, column=0, sticky="ew", padx=22, pady=(4, 12))
+            self.concern_rows.append((name_label, summary_label))
+
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
         footer.grid_columnconfigure(0, weight=1)
 
         self.footer_label = ctk.CTkLabel(
             footer,
-            text="Best results appear in steady lighting with the hand or face clearly visible in frame.",
+            text="Use a clear, well-lit image. This module is only a screening aid and should not be used as a diagnosis.",
             font=ctk.CTkFont(family="Segoe UI", size=14),
             text_color="#7D8699",
         )
         self.footer_label.grid(row=0, column=0, sticky="ew")
 
-    def _build_camera_card(self, master, title: str) -> ctk.CTkFrame:
+    def _build_preview_card(self, master, title: str) -> ctk.CTkFrame:
         outer = ctk.CTkFrame(
             master,
             corner_radius=26,
@@ -893,33 +931,46 @@ class SkinPanel(ctk.CTkFrame):
         outer.display_inner = inner
         return outer
 
-    def update_frames(self, preview_image: Image.Image, mask_image: Image.Image) -> None:
-        preview_target = self._camera_target_size(self.preview_frame.display_inner)
+    def choose_image(self) -> str:
+        return filedialog.askopenfilename(
+            title="Choose a skin image",
+            filetypes=[
+                ("Image Files", "*.png;*.jpg;*.jpeg;*.bmp;*.webp"),
+                ("All Files", "*.*"),
+            ],
+        )
+
+    def update_preview(self, preview_image: Image.Image) -> None:
+        preview_target = self._preview_target_size(self.preview_frame.display_inner)
         preview_copy = preview_image.copy()
         preview_copy.thumbnail(preview_target)
         self._current_preview = ImageTk.PhotoImage(preview_copy)
         self.preview_frame.display_label.configure(image=self._current_preview, text="")
 
-        mask_target = self._camera_target_size(self.mask_frame.display_inner)
-        mask_copy = mask_image.copy()
-        mask_copy.thumbnail(mask_target)
-        self._current_mask = ImageTk.PhotoImage(mask_copy)
-        self.mask_frame.display_label.configure(image=self._current_mask, text="")
-
-    def apply_status(self, mode: str, detail_text: str, coverage_text: str, coverage_ratio: float) -> None:
+    def apply_status(self, mode: str, detail_text: str, summary_text: str) -> None:
         theme = self.DETECTED_THEME if mode == "DETECTED" else self.SCAN_THEME
         self.status_card.configure(fg_color=theme.fg, border_color=theme.border)
         self.status_value.configure(text=mode, text_color=theme.text)
-        self.coverage_bar.configure(progress_color=theme.accent)
-        self.coverage_bar.set(max(0.0, min(1.0, coverage_ratio)))
-        self.coverage_label.configure(text=coverage_text)
+        self.pick_button.configure(fg_color=theme.accent)
+        self.summary_label.configure(text=summary_text)
         self.detail_label.configure(text=detail_text)
 
+    def set_concerns(self, concerns: list[tuple[str, str, float]]) -> None:
+        for index, row in enumerate(self.concern_rows):
+            name_label, summary_label = row
+            if index < len(concerns):
+                name, summary, score = concerns[index]
+                name_label.configure(text=f"{index + 1}. {name} ({score * 100:.0f}%)")
+                summary_label.configure(text=summary)
+            else:
+                name_label.configure(text=f"{index + 1}. Waiting for analysis")
+                summary_label.configure(text="Upload an image to populate the ranked shortlist.")
+
     @staticmethod
-    def _camera_target_size(inner_frame) -> tuple[int, int]:
+    def _preview_target_size(inner_frame) -> tuple[int, int]:
         inner_frame.update_idletasks()
-        width = max(inner_frame.winfo_width() - 44, 420)
-        height = max(inner_frame.winfo_height() - 44, 320)
+        width = max(inner_frame.winfo_width() - 44, 620)
+        height = max(inner_frame.winfo_height() - 44, 420)
         return width, height
 
 
