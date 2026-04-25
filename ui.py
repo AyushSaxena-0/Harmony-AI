@@ -698,6 +698,231 @@ class SOSPanel(ctk.CTkFrame):
         return f"#{r:02X}{g:02X}{b:02X}"
 
 
+class SkinPanel(ctk.CTkFrame):
+    SCAN_THEME = StatusTheme(
+        fg="#161C26",
+        border="#33506E",
+        text="#D8E6F7",
+        accent="#6CB7FF",
+    )
+    DETECTED_THEME = StatusTheme(
+        fg="#261A12",
+        border="#8B5E34",
+        text="#F8E7D0",
+        accent="#D8A657",
+    )
+
+    def __init__(self, master, theme: Tone) -> None:
+        super().__init__(master, fg_color="transparent")
+        self.theme = theme
+        self._current_preview = None
+        self._current_mask = None
+        self._build_layout()
+        self.apply_status("SCANNING", "Skin detector ready.", "No frame yet", 0.0)
+
+    def _build_layout(self) -> None:
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        header = ctk.CTkFrame(
+            self,
+            corner_radius=26,
+            fg_color=self.theme.panel_alt,
+            border_width=1,
+            border_color=self.theme.border,
+        )
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            header,
+            text="Skin Detector Module",
+            font=ctk.CTkFont(family="Georgia", size=26, weight="bold"),
+            text_color=self.theme.text,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 6))
+
+        ctk.CTkLabel(
+            header,
+            text="Local webcam analysis that highlights likely skin regions with a stable mask preview.",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=self.theme.muted,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 18))
+
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.grid(row=1, column=0, sticky="nsew")
+        content.grid_columnconfigure(0, weight=2)
+        content.grid_columnconfigure(1, weight=2)
+        content.grid_columnconfigure(2, weight=1)
+        content.grid_rowconfigure(0, weight=1)
+
+        self.preview_frame = self._build_camera_card(content, "Live Preview")
+        self.preview_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
+
+        self.mask_frame = self._build_camera_card(content, "Detection Mask")
+        self.mask_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 14))
+
+        side = ctk.CTkFrame(content, fg_color="transparent")
+        side.grid(row=0, column=2, sticky="nsew")
+        side.grid_columnconfigure(0, weight=1)
+
+        self.status_card = ctk.CTkFrame(
+            side,
+            corner_radius=24,
+            fg_color=self.SCAN_THEME.fg,
+            border_width=1,
+            border_color=self.SCAN_THEME.border,
+        )
+        self.status_card.grid(row=0, column=0, sticky="ew")
+        self.status_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.status_card,
+            text="Detection Status",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#9FB5CD",
+        ).grid(row=0, column=0, sticky="w", padx=22, pady=(18, 8))
+
+        self.status_value = ctk.CTkLabel(
+            self.status_card,
+            text="SCANNING",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=26, weight="bold"),
+            text_color=self.SCAN_THEME.text,
+            anchor="w",
+        )
+        self.status_value.grid(row=1, column=0, sticky="ew", padx=22)
+
+        self.coverage_bar = ctk.CTkProgressBar(
+            self.status_card,
+            height=10,
+            corner_radius=999,
+            fg_color="#0B0F15",
+            progress_color=self.SCAN_THEME.accent,
+        )
+        self.coverage_bar.grid(row=2, column=0, sticky="ew", padx=22, pady=(16, 18))
+        self.coverage_bar.set(0)
+
+        self.metrics_card = ctk.CTkFrame(
+            side,
+            corner_radius=24,
+            fg_color="#0F131B",
+            border_width=1,
+            border_color="#1E2633",
+        )
+        self.metrics_card.grid(row=1, column=0, sticky="ew", pady=(18, 0))
+        self.metrics_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self.metrics_card,
+            text="Coverage",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#92A0B8",
+        ).grid(row=0, column=0, sticky="w", padx=22, pady=(18, 8))
+
+        self.coverage_label = ctk.CTkLabel(
+            self.metrics_card,
+            text="0.0%",
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=22, weight="bold"),
+            text_color="#F5F7FB",
+            anchor="w",
+        )
+        self.coverage_label.grid(row=1, column=0, sticky="ew", padx=22)
+
+        self.detail_label = ctk.CTkLabel(
+            self.metrics_card,
+            text="Skin detector ready.",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#8E96A8",
+            wraplength=260,
+            justify="left",
+            anchor="w",
+        )
+        self.detail_label.grid(row=2, column=0, sticky="ew", padx=22, pady=(10, 18))
+
+        footer = ctk.CTkFrame(self, fg_color="transparent")
+        footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        footer.grid_columnconfigure(0, weight=1)
+
+        self.footer_label = ctk.CTkLabel(
+            footer,
+            text="Best results appear in steady lighting with the hand or face clearly visible in frame.",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color="#7D8699",
+        )
+        self.footer_label.grid(row=0, column=0, sticky="ew")
+
+    def _build_camera_card(self, master, title: str) -> ctk.CTkFrame:
+        outer = ctk.CTkFrame(
+            master,
+            corner_radius=26,
+            fg_color="#0F131B",
+            border_width=1,
+            border_color="#1E2633",
+        )
+        outer.grid_rowconfigure(1, weight=1)
+        outer.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            outer,
+            text=title,
+            font=ctk.CTkFont(family="Segoe UI Semibold", size=15, weight="bold"),
+            text_color="#D8E1F0",
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 10))
+
+        inner = ctk.CTkFrame(
+            outer,
+            corner_radius=22,
+            fg_color="#06080D",
+            border_width=1,
+            border_color="#263143",
+        )
+        inner.grid(row=1, column=0, sticky="nsew", padx=18, pady=(0, 18))
+        inner.grid_rowconfigure(0, weight=1)
+        inner.grid_columnconfigure(0, weight=1)
+
+        label = ctk.CTkLabel(
+            inner,
+            text="Waiting for frame...",
+            text_color="#7E8797",
+            font=ctk.CTkFont(family="Segoe UI", size=18),
+        )
+        label.grid(row=0, column=0, sticky="nsew", padx=22, pady=22)
+
+        outer.display_label = label
+        outer.display_inner = inner
+        return outer
+
+    def update_frames(self, preview_image: Image.Image, mask_image: Image.Image) -> None:
+        preview_target = self._camera_target_size(self.preview_frame.display_inner)
+        preview_copy = preview_image.copy()
+        preview_copy.thumbnail(preview_target)
+        self._current_preview = ImageTk.PhotoImage(preview_copy)
+        self.preview_frame.display_label.configure(image=self._current_preview, text="")
+
+        mask_target = self._camera_target_size(self.mask_frame.display_inner)
+        mask_copy = mask_image.copy()
+        mask_copy.thumbnail(mask_target)
+        self._current_mask = ImageTk.PhotoImage(mask_copy)
+        self.mask_frame.display_label.configure(image=self._current_mask, text="")
+
+    def apply_status(self, mode: str, detail_text: str, coverage_text: str, coverage_ratio: float) -> None:
+        theme = self.DETECTED_THEME if mode == "DETECTED" else self.SCAN_THEME
+        self.status_card.configure(fg_color=theme.fg, border_color=theme.border)
+        self.status_value.configure(text=mode, text_color=theme.text)
+        self.coverage_bar.configure(progress_color=theme.accent)
+        self.coverage_bar.set(max(0.0, min(1.0, coverage_ratio)))
+        self.coverage_label.configure(text=coverage_text)
+        self.detail_label.configure(text=detail_text)
+
+    @staticmethod
+    def _camera_target_size(inner_frame) -> tuple[int, int]:
+        inner_frame.update_idletasks()
+        width = max(inner_frame.winfo_width() - 44, 420)
+        height = max(inner_frame.winfo_height() - 44, 320)
+        return width, height
+
+
 class HarmonyHubUI(ctk.CTk):
     THEME = Tone(
         bg="#0A0D12",
@@ -740,7 +965,7 @@ class HarmonyHubUI(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="Two modules in one desktop app: Bhagavad Gita support chat and SOS gesture detection.",
+            text="Three modules in one desktop app: Bhagavad Gita support chat, SOS gesture detection, and skin detection.",
             font=ctk.CTkFont(family="Segoe UI", size=14),
             text_color=self.THEME.muted,
             anchor="w",
@@ -762,13 +987,19 @@ class HarmonyHubUI(ctk.CTk):
         self.tabs.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 24))
         self.tabs.add("Harmony AI Chat")
         self.tabs.add("SOS Gesture Detector")
+        self.tabs.add("Skin Detector")
         self.tabs.tab("Harmony AI Chat").grid_columnconfigure(0, weight=1)
         self.tabs.tab("Harmony AI Chat").grid_rowconfigure(0, weight=1)
         self.tabs.tab("SOS Gesture Detector").grid_columnconfigure(0, weight=1)
         self.tabs.tab("SOS Gesture Detector").grid_rowconfigure(0, weight=1)
+        self.tabs.tab("Skin Detector").grid_columnconfigure(0, weight=1)
+        self.tabs.tab("Skin Detector").grid_rowconfigure(0, weight=1)
 
         self.chat_panel = HarmonyChatPanel(self.tabs.tab("Harmony AI Chat"), self.THEME)
         self.chat_panel.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)
 
         self.sos_panel = SOSPanel(self.tabs.tab("SOS Gesture Detector"), self.THEME)
         self.sos_panel.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)
+
+        self.skin_panel = SkinPanel(self.tabs.tab("Skin Detector"), self.THEME)
+        self.skin_panel.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)

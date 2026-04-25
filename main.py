@@ -10,6 +10,7 @@ from PIL import Image
 
 from chatbot import BhagavadGitaSupportBot, ChatMessage, LocalLlamaClient, OllamaConnectionError
 from detector import SOSGestureDetector
+from skin_detector import SkinDetector
 from ui import HarmonyHubUI
 
 
@@ -24,6 +25,7 @@ class HarmonyDesktopApp:
         self._response_queue: Queue[tuple[str, str, str, str] | tuple[str, str]] = Queue()
 
         self.detector: SOSGestureDetector | None = None
+        self.skin_detector = SkinDetector()
         self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -154,22 +156,20 @@ class HarmonyDesktopApp:
     def _schedule_next_frame(self) -> None:
         if not self._running:
             return
-        self._update_detector_loop()
+        if not self.capture.isOpened():
+            self._apply_camera_unavailable()
+        else:
+            success, frame = self.capture.read()
+            if success:
+                self._update_detector_loop(frame.copy())
+                self._update_skin_loop(frame.copy())
+            else:
+                self._apply_camera_read_error()
         self.ui.after(16, self._schedule_next_frame)
 
-    def _update_detector_loop(self) -> None:
+    def _update_detector_loop(self, frame) -> None:
         panel = self.ui.sos_panel
-        if not self.capture.isOpened() or self.detector is None:
-            return
-
-        success, frame = self.capture.read()
-        if not success:
-            panel.apply_status(
-                "ALERT",
-                "Unable to read camera frames in real time.",
-                [],
-                live_state="Stream interrupted",
-            )
+        if self.detector is None:
             return
 
         processed_frame, detection = self.detector.process_frame(frame)
@@ -192,6 +192,47 @@ class HarmonyDesktopApp:
                 detection.sos_goal,
                 mode,
             ),
+        )
+
+    def _update_skin_loop(self, frame) -> None:
+        panel = self.ui.skin_panel
+        preview_frame, mask_frame, result = self.skin_detector.process_frame(frame)
+        preview_rgb = cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB)
+        mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
+        panel.update_frames(Image.fromarray(preview_rgb), Image.fromarray(mask_rgb))
+        panel.apply_status(
+            result.status,
+            result.detail_text,
+            f"{result.coverage_ratio * 100:.1f}%",
+            result.coverage_ratio,
+        )
+
+    def _apply_camera_unavailable(self) -> None:
+        self.ui.sos_panel.apply_status(
+            "ALERT",
+            "Camera unavailable. Check permissions or ensure another app is not using the webcam.",
+            [],
+            live_state="Camera offline",
+        )
+        self.ui.skin_panel.apply_status(
+            "SCANNING",
+            "Camera unavailable. Connect a webcam to use the skin detector module.",
+            "0.0%",
+            0.0,
+        )
+
+    def _apply_camera_read_error(self) -> None:
+        self.ui.sos_panel.apply_status(
+            "ALERT",
+            "Unable to read camera frames in real time.",
+            [],
+            live_state="Stream interrupted",
+        )
+        self.ui.skin_panel.apply_status(
+            "SCANNING",
+            "Unable to read camera frames for skin detection.",
+            "0.0%",
+            0.0,
         )
 
     @staticmethod
