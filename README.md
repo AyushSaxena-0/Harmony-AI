@@ -19,10 +19,15 @@ Demo link https://drive.google.com/drive/folders/1U7Hn9t8m47F8B79jV7y6IzSizO6BJf
 
 📸 Screenshots
 🧠 Chatbot Interface
+<img width="1919" height="1024" alt="image" src="https://github.com/user-attachments/assets/5b2bf7b8-bb44-4cbf-9af8-bf27e4727ab6" />
+
 
 🩺 Skin Detection Output
+<img width="1919" height="1020" alt="image" src="https://github.com/user-attachments/assets/b46d6fd4-40e3-4c0e-a6f7-2922d2add796" />
 
 🚨 SOS Gesture Detection
+<img width="1919" height="1018" alt="image" src="https://github.com/user-attachments/assets/14c80aac-62f2-4957-a328-f14533160f6c" />
+
 
 🧩 System UI (if applicable)
 
