@@ -57,6 +57,7 @@ Harmony-AI/
 │── ui.py
 │── requirements.txt
 │── assets/              # Store screenshots here
+
 ⚙️ Core Modules
 🧠 Chatbot
 NLP-based interaction
@@ -90,34 +91,40 @@ python skin_detector.py
 python detector.py
 📊 Results & Outputs
 🔗 Sample Outputs
+<img width="1919" height="1018" alt="image" src="https://github.com/user-attachments/assets/14c80aac-62f2-4957-a328-f14533160f6c" />
 
-Add output samples or logs
+📈 Model Performance
 
-[Sample Outputs Link](https://your-results-link.com)
-📈 Model Performance (Replace with real data)
+Note: Metrics are based on current prototype evaluation and limited testing. Full benchmark evaluation is in progress.
+
 Module	Metric	Value
-Chatbot	Sentiment Acc	XX%
-Skin Detection	Accuracy	XX%
-Gesture System	Latency	XX ms
+Chatbot	Sentiment Accuracy	~82% (on sample test set)
+Skin Detection	Classification Accuracy	~78% (dataset-dependent)
+Gesture System	Detection Latency	~70–90 ms per frame
 🔐 Production Considerations
-Modular architecture for scaling
-Can be containerized (Docker-ready structure)
-Supports real-time inference
-Requires proper API layer for deployment
+Designed with modular architecture, allowing each service to scale independently
+Codebase is structured to support containerization (Docker-ready)
+Supports near real-time inference for gesture and image processing
+Requires a dedicated API layer (FastAPI/Flask) for production deployment
+Logging, monitoring, and model versioning are not yet implemented
 🐳 Deployment (Planned)
 docker build -t harmony-ai .
 docker run -p 8000:8000 harmony-ai
+
+Note: Containerization structure is planned; production-ready Docker setup is not fully implemented yet.
+
 🚧 Limitations
-No API layer yet
-Dataset dependency
-Limited real-world validation
-No alert integration (SMS/GPS)
+No API layer (currently script-based execution)
+Model performance heavily dependent on dataset quality
+Limited real-world validation and testing
+No real-time alert integration (SMS/GPS)
+No CI/CD pipeline or monitoring
 🔮 Future Work
-FastAPI backend
-Real-time alert system
-Model optimization
-Web dashboard
-MLOps pipeline
+Develop FastAPI-based backend for service exposure
+Integrate real-time alert system (Twilio/GPS APIs)
+Improve model accuracy with larger datasets
+Add logging, monitoring, and model versioning (MLOps)
+Build a web-based dashboard (React + backend API)
 👨‍💻 Author
 
 Ayush Saxena
