@@ -29,7 +29,6 @@ Demo link https://drive.google.com/drive/folders/1U7Hn9t8m47F8B79jV7y6IzSizO6BJf
 <img width="1919" height="1018" alt="image" src="https://github.com/user-attachments/assets/14c80aac-62f2-4957-a328-f14533160f6c" />
 
 
-🧩 System UI (if applicable)
 
 🧩 System Architecture
 <img width="491" height="400" alt="image" src="https://github.com/user-attachments/assets/e5394536-b583-4f38-b5f2-def4f7639fe8" />
