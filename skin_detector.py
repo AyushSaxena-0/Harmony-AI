@@ -39,10 +39,11 @@ class SkinConditionAnalyzer:
         concerns = self._rank_concerns(metrics)
         annotated = self._build_preview(rgb, metrics)
 
+        primary = concerns[0] if concerns else None
         overview = (
-            f"Visible redness {metrics['redness'] * 100:.1f}% | "
-            f"texture {metrics['texture'] * 100:.1f}% | "
-            f"patchiness {metrics['patchiness'] * 100:.1f}%"
+            f"Likely condition type: {primary.name} ({primary.score * 100:.0f}%)"
+            if primary
+            else "No clear visible skin condition pattern detected"
         )
         disclaimer = (
             "This is only a visual skin concern screener, not a medical diagnosis. "
@@ -93,6 +94,7 @@ class SkinConditionAnalyzer:
         dry_edge_ratio = metrics["dry_edge_ratio"]
         brightness = metrics["brightness"]
         redness_focus = metrics["redness_focus"]
+        warm_hue_ratio = metrics["warm_hue_ratio"]
 
         scored = [
             SkinConcern(
