@@ -117,8 +117,7 @@ Ayush Saxena
 
 📜 License
 
-MIT License
-
+Free for all
 ⚠️ Disclaimer
 
 This project is not a substitute for professional medical or psychological advice.
