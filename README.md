@@ -41,7 +41,7 @@ Harmony-AI/
 │── main.py
 │── ui.py
 │── requirements.txt
-│── assets/              # Store screenshots here
+│── assets/              
 
 ⚙️ Core Modules
 🧠 Chatbot
@@ -68,14 +68,13 @@ cd harmony-ai
 pip install -r requirements.txt
 ▶️ Usage
 python main.py
-
 Or run modules individually:
 
 python chatbot.py
 python skin_detector.py
 python detector.py
 📊 Results & Outputs
-🔗 Sample Outputs
+
 <img width="1919" height="1018" alt="image" src="https://github.com/user-attachments/assets/14c80aac-62f2-4957-a328-f14533160f6c" />
 
 📈 Model Performance
