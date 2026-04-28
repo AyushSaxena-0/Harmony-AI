@@ -32,22 +32,8 @@ Demo link https://drive.google.com/drive/folders/1U7Hn9t8m47F8B79jV7y6IzSizO6BJf
 🧩 System UI (if applicable)
 
 🧩 System Architecture
-                ┌────────────────────┐
-                │   User Interface   │
-                └────────┬───────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Chat Module  │ │ Skin Module  │ │ Gesture Mod  │
-└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-       │                │                │
-       ▼                ▼                ▼
- NLP Pipeline     CNN Pipeline     CV Pipeline
-       │                │                │
-       └──────────┬─────┴─────┬──────────┘
-                  ▼           ▼
-         Response Engine / Alert System
+<img width="491" height="400" alt="image" src="https://github.com/user-attachments/assets/e5394536-b583-4f38-b5f2-def4f7639fe8" />
+
 🗂️ Project Structure
 Harmony-AI/
 │── chatbot.py
