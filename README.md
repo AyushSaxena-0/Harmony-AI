@@ -110,6 +110,7 @@ Integrate real-time alert system (Twilio/GPS APIs)
 Improve model accuracy with larger datasets
 Add logging, monitoring, and model versioning (MLOps)
 Build a web-based dashboard (React + backend API)
+
 👨‍💻 Author
 
 Ayush Saxena
