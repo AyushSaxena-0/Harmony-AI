@@ -34,60 +34,7 @@ Demo link https://drive.google.com/drive/folders/1U7Hn9t8m47F8B79jV7y6IzSizO6BJf
 <img width="491" height="400" alt="image" src="https://github.com/user-attachments/assets/e5394536-b583-4f38-b5f2-def4f7639fe8" />
 
 🗂️ Project Structure
-Harmony-AI/
-│
-├── app/                          # Core application layer
-│   ├── chatbot/                 # Emotional module
-│   │   ├── chatbot.py
-│   │   ├── model.py
-│   │   └── utils.py
-│   │
-│   ├── skin/                    # Skin detection module
-│   │   ├── skin_detector.py
-│   │   ├── model.py
-│   │   └── preprocess.py
-│   │
-│   ├── gesture/                 # Gesture detection module
-│   │   ├── detector.py
-│   │   ├── model.py
-│   │   └── utils.py
-│   │
-│   └── common/                  # Shared utilities
-│       ├── config.py
-│       ├── logger.py
-│       └── helpers.py
-│
-├── api/                         # API layer (future production)
-│   ├── routes.py
-│   └── server.py
-│
-├── models/                      # Trained models
-│   ├── chatbot/
-│   ├── skin/
-│   └── gesture/
-│
-├── data/                        # Datasets (not always pushed to Git)
-│   ├── raw/
-│   └── processed/
-│
-├── notebooks/                   # Experiments / research
-│   └── experiments.ipynb
-│
-├── tests/                       # Unit tests
-│   ├── test_chatbot.py
-│   ├── test_skin.py
-│   └── test_gesture.py
-│
-├── assets/                      # Screenshots / demo media
-│   ├── chatbot.png
-│   ├── skin.png
-│   └── gesture.png
-│
-├── main.py                      # Entry point (orchestrator)
-├── requirements.txt             # Dependencies
-├── Dockerfile                   # Container config (future)
-├── README.md
-└── .gitignore             
+<img width="711" height="639" alt="image" src="https://github.com/user-attachments/assets/9f77346b-3555-4a7b-a854-06e0a424f47f" />
 
 ⚙️ Core Modules
 🧠 Chatbot
